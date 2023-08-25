@@ -9,32 +9,32 @@ doc = App.ActiveDocument# Create a new document
 import Part, Spreadsheet
 sheet = doc.getObject("Spreadsheet")
 gui=Gui.ActiveDocument
-#create array of pallet cavity positions
-pitchCol=sheet.PalletPitchLg
-pitchRow=20 # diff from current pallet
-import Draft
-arrPalletLow=[]
-arrPalletT=[]
+#define variable for creation of array for xyz positions for 48 cavities
+pitchCol=sheet.PalletPitchLg # x-direction spacing of cavities in pallet
+pitchRow=20 # y-direction spacing of cavities in pallet
+arrPalletLow=[] # 2D array of 48 cavities when the pallet is in low location
+arrPalletTop=[] # 2D array of 48 cavities when the pallet is in top location
+#define the anchor point of the low and top pallet
 xLow=50
 yLow=0
 zLow=0
 xTop=50
 yTop=408
 zTop=0
-#create position of cavity in top & lower pallet
+#start creating the array for low & top pallet
 for i in range(6):	
   for j in range(8):
-    #print('i='+str(i)+',j='+str(j)+', i*8+j+1='+str(i*8+j+1))
+    #print('i='+str(i)+',j='+str(j)+', i*8+j+1='+str(i*8+j+1)) # for debugging only
     arrLow=[]
     arrTop=[]
     count=i*8+j
     #for lower pallet
-    arrLow.append('Pos'+str(count+1))
-    arrLow.append(pitchCol*i+xLow)
-    arrLow.append(pitchRow*j+yLow)
-    arrLow.append(0+zLow)
-    arrLow.append(False) #indicate empty
-    arrPalletLow.append(arrLow)
+    arrLow.append('Pos'+str(count+1)) # name of row
+    arrLow.append(pitchCol*i+xLow) # x position
+    arrLow.append(pitchRow*j+yLow)  # y-position
+    arrLow.append(0+zLow) # z-position
+    arrLow.append(False) # indicate empty, currently not used
+    arrPalletLow.append(arrLow) # to form a 2D array
     #for top pallet
     arrTop.append('TinePallet'+str(count+1))
     arrTop.append(pitchCol*i+xTop)
@@ -42,10 +42,11 @@ for i in range(6):
     arrTop.append(0+zTop)
     arrTop.append(True) #indicate full
     arrPalletT.append(arrTop)
-    #App.Console.PrintMessage('Pallet Top'+str(count+1)+'; X='+str(pitchCol*j+xTop)+'; Y='+str(yTop-pitchRow*i)+'\n')  
+    #App.Console.PrintMessage('Pallet Top'+str(count+1)+'; X='+str(pitchCol*j+xTop)+'; Y='+str(yTop-pitchRow*i)+'\n') #for debugging only 
 #--end of pallet cavity array
 
-#Set variable to create tine. #get data from speaadsheet
+#Create position of supplied parts called Tines that are on left and right side of pallet (low) 
+#Set variables to create tine using data from speadsheet
 a=sheet.LinerPitchLg
 b=sheet.LinerPitchRow
 c=sheet.LinerPitchCol
@@ -53,7 +54,7 @@ tinesLeftArr=[]
 tinesRightArr=[]
 def createTines(x,y,z,groupName):
   if ('left' in groupName.lower()):
-    tinesLeftArr.clear()
+    tinesLeftArr.clear() #reset 2D array to empty
     tinesArr=tinesLeftArr
     suffix='L'
   else:
@@ -67,23 +68,24 @@ def createTines(x,y,z,groupName):
       arr.append(j*c+x)
       arr.append(abs(j)*b+a*i+y)
       arr.append(z)
+      #simulating missing tine on he supply of tines at 8%
       if random.random()>0.92:
-        arr.append(False)
+        arr.append(False) #indicate tine is missing for current position
       else:
         arr.append(True)
-      tinesArr.append(arr)
+      tinesArr.append(arr)# leave empty line at end of function otherwise cause error
 
-  # get object (Cylinder) to be cloned
+  # get Freecad object Cylinder = Tine to be cloned
   tine = doc.getObject("Cylinder")
-  # Create a part to hold the cloned objects
+  # Create a part feature to hold the cloned objects
   tinesLeft=doc.addObject("App::Part", groupName)
-  #group = doc.addObject("App::DocumentObjectGroup", groupName)
+  # Do not use group = doc.addObject("App::DocumentObjectGroup", groupName) as group has limitation for manupulation
   import Draft
   # Clone the original object and assign names to the clones
   clone_count = 30
   for i in range(1, clone_count + 1):
     clone=Draft.clone(doc.getObject("Cylinder"))
-    clone.Label = "Tine"+suffix+ str(i)
+    clone.Label = "Tine"+suffix+ str(i) # assign new label. Note: This is diff from internal name
     tinesLeft.addObject(clone)
     clone.Placement.Base=App.Vector(tinesArr[i-1][1],tinesArr[i-1][2],tinesArr[i-1][3])
     if not tinesArr[i-1][4]:
@@ -91,7 +93,6 @@ def createTines(x,y,z,groupName):
   doc.recompute(None,True,True)
 
 #end of creating tines function
-
 
 def deleteTines():
   doc = App.ActiveDocument
@@ -101,23 +102,23 @@ def deleteTines():
   doc.removeObject('TinesRight')
 
 def getUserInput():
-  global repeat
+  global repeat # number of cycle to run
   global speed
   repeat =  QtGui.QInputDialog.getInt(None,"Enter number","Cycle to repeat")[0]
   speed =  QtGui.QInputDialog.getInt(None,"Enter speed 5 to 100","Smaller is faster")[0]
 
+#assign grippers to varaiable
 sixUpPnp=doc.getObject('SixUpPnP')
 gripperLt=doc.getObject('MyParts004')
 gripperRt=doc.getObject('Clone158')
-  # function to restore initial position of the objects
+# function to restore initial position of the objects. Freecad python need an empty line otherwise copiler will complain that there is error
 def reset():
   gripperLt.Placement.Base=Vector(0,0,0)
   sixUpPnp.Placement.Base=Vector (16.4, 573.6, 0.0)
   gripperRt.Placement.Base=Vector(270,0,12)
 
-
 reset()
-
+# make all tines in pallet visible.
 def makeTinesVisible():
   tineG=doc.getObject('TinesR1')
   tineG.ViewObject.Visibility = True
@@ -136,10 +137,12 @@ def makeTinesVisible():
   tineG=doc.getObject('TinesR8')
   tineG.ViewObject.Visibility = True
 
+# create a timer instance
 timerTineL = QtCore.QTimer()
 #Get the AutoLam PnP & place it at home position
 
-import time #required for sleep function
+import time #native time function required for sleep function. Diff from Qt timer
+#animation two process of pick & place tines
 def pnpTines():
   global sixUpMove
   global accuStep
@@ -147,16 +150,17 @@ def pnpTines():
   global pTrackL
   global speed
   global repeat
-  tTrackL = 0 #tracker for tine left
+  tTrackL = 0 #tracker for tine on left of pallet(low)
   pTrackL= 0  #tracker for pallet left
   global movementR
-  global tTrackR
-  global pTrackR
-  tTrackR = 0 #tracker for tine right
-  pTrackR=24  #tracker for pallet right
-  accuStep=0
-  #reset tines visible in pallet
+  global tTrackR #tracker for tine on RIGHT of pallet(low)
+  global pTrackR #tracker for pallet RIGHT
+  tTrackR = 0 #tracker for tine RIGHT
+  pTrackR=24  #tracker for pallet RIGHT
+  accuStep=0 # Track progress of animation step
+  #reset all tines in pallet to visible
   makeTinesVisible()
+  #Process 1: 1Up pick & place tine into pallet
   for t in range(30):  #need to update pTrack & tTrack in the loop
     if repeat == 'stop':
       reset()
@@ -186,7 +190,7 @@ def pnpTines():
       distR = (currPRCavityV-initTineBaseR).Length/50
       App.Console.PrintMessage('Dist Travel '+arrPalletLow[pTrackR][0]+'='+str(f'{distR*50*2: .2f}' )+'\n')
       movementR = uDirR*distR #amount to move in each step in direction of uDir
-      #set movement for 6 Up Gripper
+      #set movement for 6-Up Gripper
       if pTrackL == 0: 
         tineG=doc.getObject('TinesR1')
         tineG.ViewObject.Visibility = False
@@ -221,6 +225,7 @@ def pnpTines():
       Gui.updateGui()
       for _ in range(speed*5000000):
         pass
+      #accuStep is used for 'timing' the 6Up pick & place
       for step in range(100):
         if accuStep >=0 and accuStep <150: sixUpMove=(160/150)
         if accuStep >=150 and accuStep <300: sixUpMove=-(180/150)
@@ -267,7 +272,7 @@ def pnpTines():
     tTrackR+=1
     pTrackR+=1
 
-
+#animate supply of tines on the left side
 def createTinesLScroll():
   createTines(0,0,12,'TinesLeft')
   partsL=doc.getObject('TinesLeft')
@@ -275,7 +280,8 @@ def createTinesLScroll():
   for _ in range(100):
     partsL.Placement.Base.y-=2 #scroll step by step 200/100
     Gui.updateGui() # DeletTines('TinesLeft')
-
+    
+#animate supply of tines on the RIGHT side
 def createTinesRScroll():
   createTines(270,0,12,'TinesRight')
   partsR=doc.getObject('TinesRight')
@@ -305,144 +311,3 @@ def runCyc():
   
 
 runCyc()
-
-#function to place tines into upper pallet. Use once only
-def placeTinesInUpperPallet():
-  global arrTinesUpperPallet
-  pitchCol=33.78
-  pitchRow=20
-  arrTinesUpperPallet=[]
-  x=50
-  y=573.6
-  z=0
-
-  for i in range(8):	
-    for j in range(6):
-      App.Console.PrintMessage('i='+str(i)+',j='+str(j)+', i*8+j+1='+str(i*8+j+1))
-      arr=[]
-      count=i*6+j
-      arr.append('TinePallet'+str(count+1))
-      arr.append(pitchCol*j+x)
-      arr.append(y-pitchRow*i)
-      arr.append(0+z)
-      arr.append(True) #indicate full
-      arrTinesUpperPallet.append(arr)
-      App.Console.PrintMessage('TinePallet'+str(count+1)+'; X='+str(pitchCol*j+x)+'; Y='+str(y-pitchRow*i)+'\n')
-      tineP=doc.getObjectsByLabel(arr[0])[0]
-      tineP.Placement.Base=FreeCAD.Vector(arr[1],arr[2],arr[3])
-
-    """
-    if pTrackR<48:
-      if tinesRightArr[tTrackR][4]:
-        currTineR=doc.getObject('TinesRight').Group.__getitem__(tTrackR)
-        initTineBaseR =currTineR.Placement.Base
-        currPRCavityV= Vector(arrPallet[pTrackR][1],arrPallet[pTrackR][2],arrPallet[pTrackR][3])
-        #Note: Direction is reverse
-        uDirR = (currPRCavityV-initTineBaseR).normalize()
-        distR = (currPRCavityV-initTineBaseR).Length/100
-        movementR = uDirR*distR #amount to move in each step in direction of uDir
-        App.Console.PrintMessage("TineRBase: " + str(currTineR.Placement.Base)+"; PalletBase: "+str(currPRCavityV)+ "\n")
-        for _ in range(100):
-          newPosR = currTineR.Placement.Base + movementR
-          # Move placementt along the direction
-          currTineR.Placement.Base=newPosR
-          Gui.updateGui()
-        tTrackR+=1
-        pTrackR+=1
-        App.Console.PrintMessage("Move : " + str(movementR)+"CurrTine NameR: " +currTineR.Name+ "\n")
-      else:
-        tTrackR+=1
-    else:
-      if (pTrackL>23 and pTrackR>47):  
-        break
-    """
-
-def pnpTinesR():
-  global movementR
-  global tTrackR
-  global pTrackR
-  tTrackR = 0 #tracker for tine right
-  pTrackR=24  #tracker for pallet right
-  #get tines& pallet  vector
-  for _ in range(30):  #need to update pTrack & tTrack in the loop
-    if pTrackR<48:
-      if tinesRightArr[tTrackR][4]:
-        currTineR=doc.getObject('TinesRight').Group.__getitem__(tTrackR)
-        initTineBaseR =currTineR.Placement.Base
-        currPRCavityV= Vector(arrPallet[pTrackR][1],arrPallet[pTrackR][2],arrPallet[pTrackR][3])
-        #Note: Direction is reverse
-        uDirR = (currPRCavityV-initTineBaseR).normalize()
-        distR = (currPRCavityV-initTineBaseR).Length/100
-        movementR = uDirR*distR #amount to move in each step in direction of uDir
-        App.Console.PrintMessage("TineRBase: " + str(currTineR.Placement.Base)+"; PalletBase: "+str(currPRCavityV)+ "\n")
-        for _ in range(100):
-          newPosR = currTineR.Placement.Base + movementR
-          # Move placementt along the direction
-          currTineR.Placement.Base=newPosR
-          Gui.updateGui()
-        tTrackR+=1
-        pTrackR+=1
-        App.Console.PrintMessage("Move : " + str(movementR)+"CurrTine NameR: " +currTineR.Name+ "\n")
-       # connect timer event to function "nudge"   f'{value: .2f}'
-        #timerTineL.timeout.connect(nudge(newObj))
-        #timerTineL.start(100)
-      else:
-        tTrackR+=1
-    else:
-      break
-
-tineCycL=0
-def nudge(tineL):
-  global movement
-  global tineCycL
-  if tineCycL>10:
-    timerTineL.stop()
-    tineCycL=1   
-  else:
-    newPos = tineL.Placement.Base + movement
-    # Move placementt along the direction
-    tineL.Placement.Base=newPos
-    tineCycL+=1
-    Gui.updateGui()
-    App.Console.PrintMessage("TineCyc : " + str(tineCycL) + "\n")
-
-eTimer = QtCore.QElapsedTimer()
-eTimer.start()
-now=eTimer.elasped()
-def scroll1Step():
-  parts=doc.getObject('TinesLeft')
-  parts.Placement.Base.y=200
-  if parts.Placement.Base.y < 1:
-    timer1.stop()
-  else:
-    parts.Placement.Base.y-=5 #scroll step by step
-    Gui.updateGui()
-  App.Console.PrintMessage("Cyc : " + str(cyc) + "\n")
-
-
-        App.Console.PrintMessage("Move : " + str(movement)+"; tTrack: "+str(tTrackL) +"; pTrack: "+str(pTrackL)+ "\n")
-        App.Console.PrintMessage("CurrTine Name : " +currTineL.Name+ "\n")
-        
-def stopTimers():
-  timer1.Stop()
-  deleteTines('TinesLeft')
-  timer2.Stop()
-  deleteTines('TinesRight')
-
-createTinesLScroll()
-createTinesRScroll()
-# Create a timer for moving object 1
-timer1 = QtCore.QTimer()
-timer1.timeout.connect(pnpTinesL)
-# Create a timer for moving object 2
-timer2 = QtCore.QTimer()
-timer2.timeout.connect(pnpTinesR)
-
-timer1.start(50)
-timer2.start(50)
-QtCore.QTimer.singleShot(60000, stopTimers)
-
-
-#QtCore.QTimer.singleShot(50, createTinesLScroll)
-#QtCore.QTimer.singleShot(50, createTinesRScroll)
-#deleteTines('TinesLeft')
