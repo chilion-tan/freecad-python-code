@@ -11,4 +11,4 @@ Link to the video: https://drive.google.com/file/d/1734sql54cojLAIbOdflTz8fSLrHe
 The code was developed to showcase a mechanism used to pick parts using gripper. 
 1) Video show only 2 claws to reduce computation in Freecad.
 2) Threaded rod with cam move up & down by a air cylinder which will push and cause the gripging claws to rotate about their fulcrums.
-3) The end of the threaded rod is designed to push off the round part fromthe claws
+3) The end of the threaded rod is designed to push off the round part from the claws
